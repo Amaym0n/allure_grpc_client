@@ -4,6 +4,9 @@ version = "1.3.6"
 description = ""
 authors = ["amaym0n <loco.skitls@gmail.com>"]
 readme = "README.md"
+packages = [
+    { include = "grpc_client" }
+]
 
 [tool.poetry.dependencies]
 grpcio = { version = "*", python = "^3.9" }
