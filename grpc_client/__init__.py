@@ -9,10 +9,13 @@ from grpc_reflection.v1alpha.proto_reflection_descriptor_database import ProtoRe
 
 
 class GRPClient:
-    def __init__(self, address: str, cert_path: str) -> None:
+    def __init__(self, address: str, cert_path: str | None = None) -> None:
         self.cert_path = cert_path
-        with open(self.cert_path, 'rb') as f:
-            root_certificates = f.read()
+        if self.cert_path is None:
+            root_certificates = None
+        else:
+            with open(self.cert_path, 'rb') as f:
+                root_certificates = f.read()
         self.address = address
         credentials = grpc.ssl_channel_credentials(root_certificates=root_certificates)
         self.channel = grpc.secure_channel(target=address, credentials=credentials)
