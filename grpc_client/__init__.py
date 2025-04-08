@@ -12,13 +12,13 @@ class GRPClient:
     def __init__(self, address: str, cert_path: str | None = None) -> None:
         self.cert_path = cert_path
         if self.cert_path is None:
-            root_certificates = None
+            self.channel = grpc.insecure_channel(target=address)
         else:
             with open(self.cert_path, 'rb') as f:
                 root_certificates = f.read()
+            credentials = grpc.ssl_channel_credentials(root_certificates=root_certificates)
+            self.channel = grpc.secure_channel(target=address, credentials=credentials)
         self.address = address
-        credentials = grpc.ssl_channel_credentials(root_certificates=root_certificates)
-        self.channel = grpc.secure_channel(target=address, credentials=credentials)
         self._descriptor_pool = DescriptorPool(ProtoReflectionDescriptorDatabase(channel=self.channel))
         self._message_factory = MessageFactory(self._descriptor_pool)
 
