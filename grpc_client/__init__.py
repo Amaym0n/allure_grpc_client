@@ -1,4 +1,5 @@
 import json
+from collections.abc import Sequence
 
 import allure
 import grpc
@@ -31,7 +32,8 @@ class GRPClient:
                 return method
         raise RuntimeError(f"Method {method_name} not found in service {service_name}.")
 
-    def send_request(self, service_name: str, method_name: str, payload: dict) -> str:
+    def send_request(self, service_name: str, method_name: str, payload: dict,
+                     metadata: Sequence[tuple[str, str]] | None = None) -> str:
         with allure.step(f'gRPC Request -> {self.address}'):
             method_desc = self._get_method_descriptor(service_name, method_name)
             input_type, output_type = method_desc.input_type, method_desc.output_type
@@ -43,11 +45,13 @@ class GRPClient:
                    f"{service_name}/{method_name}")
             print(req)
             allure.attach(str(req), name='gRPC Request', attachment_type=allure.attachment_type.TEXT)
-            response_msg = self.channel.unary_unary(
+            unary_call = self.channel.unary_unary(
                 full_rpc_name,
                 request_serializer=lambda msg: msg.SerializeToString(),
                 response_deserializer=lambda data: self._message_factory.GetPrototype(output_type)().FromString(data),
-            )(request_msg)
+                metadata=[('Content-Type', 'application/json')],
+            )
+            response_msg = unary_call(request_msg, metadata=metadata)
             response_json = json_format.MessageToDict(response_msg)
             response = json.dumps(response_json, indent=2, ensure_ascii=False)
             allure.attach(str(response), name='gRPC Response', attachment_type=allure.attachment_type.TEXT)
