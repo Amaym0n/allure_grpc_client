@@ -49,7 +49,6 @@ class GRPClient:
                 full_rpc_name,
                 request_serializer=lambda msg: msg.SerializeToString(),
                 response_deserializer=lambda data: self._message_factory.GetPrototype(output_type)().FromString(data),
-                metadata=[('Content-Type', 'application/json')],
             )
             response_msg = unary_call(request_msg, metadata=metadata)
             response_json = json_format.MessageToDict(response_msg)
