@@ -1,5 +1,6 @@
 import json
 from collections.abc import Sequence
+from typing import Any
 
 import allure
 import grpc
@@ -33,7 +34,7 @@ class GRPClient:
         raise RuntimeError(f"Method {method_name} not found in service {service_name}.")
 
     def send_request(self, service_name: str, method_name: str, payload: dict,
-                     metadata: Sequence[tuple[str, str]] | None = None) -> str:
+                     metadata: Sequence[tuple[str, str]] | None = None) -> tuple[Any, Any] | str:
         try:
             with allure.step(f'gRPC Request -> {self.address}'):
                 method_desc = self._get_method_descriptor(service_name, method_name)
