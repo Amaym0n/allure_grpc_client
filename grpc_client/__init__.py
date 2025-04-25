@@ -34,25 +34,29 @@ class GRPClient:
 
     def send_request(self, service_name: str, method_name: str, payload: dict,
                      metadata: Sequence[tuple[str, str]] | None = None) -> str:
-        with allure.step(f'gRPC Request -> {self.address}'):
-            method_desc = self._get_method_descriptor(service_name, method_name)
-            input_type, output_type = method_desc.input_type, method_desc.output_type
-            request_msg_class = self._message_factory.GetPrototype(input_type)
-            request_msg = request_msg_class()
-            json_format.ParseDict(payload, request_msg)
-            full_rpc_name = f"/{service_name}/{method_name}"
-            req = (f"grpcurl -d '{json.dumps(payload)}' -cacert {self.cert_path} {self.address} "
-                   f"{service_name}/{method_name}")
-            print(req)
-            allure.attach(str(req), name='gRPC Request', attachment_type=allure.attachment_type.TEXT)
-            unary_call = self.channel.unary_unary(
-                full_rpc_name,
-                request_serializer=lambda msg: msg.SerializeToString(),
-                response_deserializer=lambda data: self._message_factory.GetPrototype(output_type)().FromString(data),
-            )
-            response_msg = unary_call(request_msg, metadata=metadata)
-            response_json = json_format.MessageToDict(response_msg)
-            response = json.dumps(response_json, indent=2, ensure_ascii=False)
-            allure.attach(str(response), name='gRPC Response', attachment_type=allure.attachment_type.TEXT)
-            print(response)
-            return response
+        try:
+            with allure.step(f'gRPC Request -> {self.address}'):
+                method_desc = self._get_method_descriptor(service_name, method_name)
+                input_type, output_type = method_desc.input_type, method_desc.output_type
+                request_msg_class = self._message_factory.GetPrototype(input_type)
+                request_msg = request_msg_class()
+                json_format.ParseDict(payload, request_msg)
+                full_rpc_name = f"/{service_name}/{method_name}"
+                req = (f"grpcurl -d '{json.dumps(payload)}' -cacert {self.cert_path} {self.address} "
+                       f"{service_name}/{method_name}")
+                print(req)
+                allure.attach(str(req), name='gRPC Request', attachment_type=allure.attachment_type.TEXT)
+                unary_call = self.channel.unary_unary(
+                    full_rpc_name,
+                    request_serializer=lambda msg: msg.SerializeToString(),
+                    response_deserializer=lambda data: self._message_factory.GetPrototype(output_type)().FromString(data),
+                )
+                response_msg = unary_call(request_msg, metadata=metadata)
+                response_json = json_format.MessageToDict(response_msg)
+                response = json.dumps(response_json, indent=2, ensure_ascii=False)
+                allure.attach(str(response), name='gRPC Response', attachment_type=allure.attachment_type.TEXT)
+                print(response)
+                return response
+        except grpc.RpcError as error:
+            print(f"[gRPC Error] Code: {error.code().name}, Details: {error.details()}")
+            return error.code().name, error.details()
