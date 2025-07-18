@@ -1,12 +1,12 @@
 import json
 from collections.abc import Sequence
-from typing import Any
 
 import allure
 import grpc
 from google.protobuf import json_format
 from google.protobuf.descriptor_pool import DescriptorPool
-from google.protobuf.message_factory import MessageFactory
+from google.protobuf.message_factory import GetMessageClass
+from grpc import RpcError
 from grpc_reflection.v1alpha.proto_reflection_descriptor_database import ProtoReflectionDescriptorDatabase
 
 
@@ -22,7 +22,6 @@ class GRPClient:
             self.channel = grpc.secure_channel(target=address, credentials=credentials)
         self.address = address
         self._descriptor_pool = DescriptorPool(ProtoReflectionDescriptorDatabase(channel=self.channel))
-        self._message_factory = MessageFactory(self._descriptor_pool)
 
     def _get_method_descriptor(self, service_name: str, method_name: str):
         service_desc = self._descriptor_pool.FindServiceByName(service_name)
@@ -34,12 +33,12 @@ class GRPClient:
         raise RuntimeError(f"Method {method_name} not found in service {service_name}.")
 
     def send_request(self, service_name: str, method_name: str, payload: dict,
-                     metadata: Sequence[tuple[str, str]] | None = None) -> tuple[Any, Any] | str:
+                     metadata: Sequence[tuple[str, str]] | None = None) -> RpcError | str:
         try:
             with allure.step(f'gRPC Request -> {self.address}'):
                 method_desc = self._get_method_descriptor(service_name, method_name)
                 input_type, output_type = method_desc.input_type, method_desc.output_type
-                request_msg_class = self._message_factory.GetPrototype(input_type)
+                request_msg_class = GetMessageClass(input_type)
                 request_msg = request_msg_class()
                 json_format.ParseDict(payload, request_msg)
                 full_rpc_name = f"/{service_name}/{method_name}"
@@ -50,7 +49,8 @@ class GRPClient:
                 unary_call = self.channel.unary_unary(
                     full_rpc_name,
                     request_serializer=lambda msg: msg.SerializeToString(),
-                    response_deserializer=lambda data: self._message_factory.GetPrototype(output_type)().FromString(data),
+                    response_deserializer=lambda data: GetMessageClass(output_type)().FromString(
+                        data),
                 )
                 response_msg = unary_call(request_msg, metadata=metadata)
                 response_json = json_format.MessageToDict(response_msg)
@@ -59,5 +59,5 @@ class GRPClient:
                 print(response)
                 return response
         except grpc.RpcError as error:
-            print(f"[gRPC Error] Code: {error.code().name}, Details: {error.details()}")
-            return error.code().name, error.details()
+            print(f"[gRPC Error] {error}")
+            return error

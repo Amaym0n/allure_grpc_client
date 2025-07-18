@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "allure-grpc-client"
-version = "1.4.1"
+version = "1.4.2"
 description = ""
 authors = ["amaym0n <loco.skitls@gmail.com>"]
 readme = "README.md"
