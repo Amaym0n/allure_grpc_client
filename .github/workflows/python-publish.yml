@@ -1,0 +1,49 @@
+name: Publish to PyPI via Poetry
+
+on:
+  release:
+    types: [ published ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: false
+
+      - name: Set version based on today (yy.DDD)
+        id: setver
+        run: |
+          VERSION=$(date +'%y.%-j')
+          echo "Resolved version: $VERSION"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Update project version in pyproject.toml
+        run: |
+          poetry version "$VERSION"
+          echo "pyproject version set to $(poetry version -s)"
+
+      - name: Build package with Poetry
+        run: |
+          poetry build
+
+      - name: Publish to PyPI with Poetry
+        env:
+          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          poetry publish --username __token__ --password "$POETRY_PYPI_TOKEN_PYPI"
